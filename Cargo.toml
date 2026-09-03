@@ -5,6 +5,10 @@ edition = "2021"
 description = "Automatic CLI workflow learner and shortcut runner"
 authors = ["OpenClaw"]
 
+[lib]
+name = "rerun"
+path = "src/lib.rs"
+
 [[bin]]
 name = "rr"
 path = "src/main.rs"
@@ -18,7 +22,11 @@ ratatui = "0.29"
 crossterm = "0.28"
 chrono = { version = "0.4", features = ["serde"] }
 directories = "5.0"
+dirs = "5.0"
 sha2 = "0.10"
 uuid = { version = "1.10", features = ["v4", "fast-rng"] }
 thiserror = "1.0"
 anyhow = "1.0"
+
+[dev-dependencies]
+tempfile = "3.10"
