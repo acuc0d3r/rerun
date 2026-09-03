@@ -1,0 +1,24 @@
+[package]
+name = "rerun"
+version = "0.1.0"
+edition = "2021"
+description = "Automatic CLI workflow learner and shortcut runner"
+authors = ["OpenClaw"]
+
+[[bin]]
+name = "rr"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+ratatui = "0.29"
+crossterm = "0.28"
+chrono = { version = "0.4", features = ["serde"] }
+directories = "5.0"
+sha2 = "0.10"
+uuid = { version = "1.10", features = ["v4", "fast-rng"] }
+thiserror = "1.0"
+anyhow = "1.0"
