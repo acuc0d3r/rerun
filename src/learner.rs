@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::event::CommandEvent;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DiscoveredWorkflow {
@@ -67,14 +67,50 @@ impl SequenceMiner {
             }
             session_id = Some(&event.session_id);
             let command = event.command.trim();
+            let first_word = command.split_whitespace().next().unwrap_or("");
+            let shell_state = matches!(
+                first_word,
+                "cd" | "export" | "unset" | "source" | "." | "alias" | "unalias" | "set" | "shopt"
+            );
+            let inspection = matches!(
+                first_word,
+                "pwd"
+                    | "pushd"
+                    | "popd"
+                    | "dirs"
+                    | "ls"
+                    | "ll"
+                    | "tree"
+                    | "which"
+                    | "type"
+                    | "man"
+                    | "vim"
+                    | "nvim"
+                    | "nano"
+                    | "less"
+                    | "more"
+                    | "jobs"
+                    | "fg"
+                    | "bg"
+                    | "disown"
+                    | "exit"
+                    | "logout"
+            );
+            let help_or_version = command
+                .split_whitespace()
+                .any(|word| matches!(word, "-h" | "--help" | "-V" | "--version"));
+            let command_lookup = command.starts_with("command -v ");
             let noise = command.is_empty()
                 || command == "clear"
+                || command == "reset"
                 || command == "history"
+                || command == "fc"
                 || command == "rr"
-                || command.starts_with("cd ")
-                || command.starts_with("export ")
-                || command.starts_with("source ")
-                || command.starts_with("rr ");
+                || command.starts_with("rr ")
+                || shell_state
+                || inspection
+                || help_or_version
+                || command_lookup;
             if event.exit_status != 0 || noise {
                 if !current.is_empty() {
                     runs.push(std::mem::take(&mut current));
@@ -131,7 +167,9 @@ impl SequenceMiner {
             }
         }
 
-        let letters = ["d", "b", "t", "s", "r", "p", "c", "m", "w", "x", "y", "z", "a", "e", "f", "g"];
+        let letters = [
+            "d", "b", "t", "s", "r", "p", "c", "m", "w", "x", "y", "z", "a", "e", "f", "g",
+        ];
         let mut workflows = Vec::new();
         let mut used_shortcuts = std::collections::HashSet::new();
 

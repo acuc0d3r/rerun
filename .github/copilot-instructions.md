@@ -44,8 +44,11 @@ data uses `$XDG_RUNTIME_DIR/.rerun/spool` when that variable is set.
   database queries and workflow synchronization.
 - Preserve event ordering when mining. The database returns recent events in
   chronological order after applying its limit.
-- Treat failed commands, shell noise (`cd`, `export`, `source`, `clear`,
-  `history`, and `rr`), and session changes as workflow boundaries.
+- Treat failed commands, shell-state commands (`cd`, `export`, `unset`,
+  `source`, `.`, `alias`, `unalias`, `set`, and `shopt`), interactive/session
+  commands, inspection commands, help/version probes, shell noise (`clear`,
+  `reset`, `history`, `fc`, and `rr`), and session changes as workflow
+  boundaries.
 - Keep shortcut generation deterministic; stable ordering is required so sync
   does not randomly remap shortcuts.
 - Use parameterized SQLite queries. Workflow command sequences are stored as
