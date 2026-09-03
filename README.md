@@ -7,6 +7,10 @@ It records successful Bash commands through a non-blocking shell hook, mines
 repeated contiguous sequences, and stores workflows in SQLite. Destructive or
 compound commands require confirmation before execution.
 
+Commands run by a replayed workflow are recorded directly by `rr` after each
+command finishes, including its exit status. Commands typed in an interactive
+Bash session are recorded by the installed prompt hook.
+
 ## Install
 
 Build the release binary:
@@ -27,6 +31,11 @@ Install the Bash hook:
 rr install bash
 source ~/.bashrc
 ```
+
+`rr install bash` appends a marker-bounded `PROMPT_COMMAND` hook to
+`~/.bashrc`. The hook records the last command after each prompt returns,
+asynchronously invoking `rr record`; it does not record commands from shells
+that have not loaded the hook.
 
 Remove the hook with:
 

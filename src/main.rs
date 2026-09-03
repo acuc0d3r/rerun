@@ -56,7 +56,12 @@ enum Commands {
     },
 }
 
-fn execute_commands(commands: &[String]) -> Result<bool> {
+fn execute_commands(
+    db: &Database,
+    project_root: &str,
+    cwd: &str,
+    commands: &[String],
+) -> Result<bool> {
     if !SafetyChecker::prompt_confirmation(commands) {
         println!("Execution cancelled.");
         return Ok(false);
@@ -73,6 +78,15 @@ fn execute_commands(commands: &[String]) -> Result<bool> {
             .arg(cmd)
             .status()
             .with_context(|| format!("Failed to execute command: {}", cmd))?;
+        let exit_status = status.code().unwrap_or(-1);
+        let event = CommandEvent::new(
+            format!("{}-rr", std::process::id()),
+            cmd.clone(),
+            cwd.to_string(),
+            exit_status,
+            "bash".to_string(),
+        );
+        db.insert_event(&event, project_root)?;
 
         if !status.success() {
             eprintln!(
@@ -200,7 +214,7 @@ fn main() -> Result<()> {
         sync_project_workflows(&db, &project_root)?;
         if let Some(wf) = db.find_workflow(&project_root, &shortcut)? {
             let cmds: Vec<String> = serde_json::from_str(&wf.commands_json)?;
-            let success = execute_commands(&cmds)?;
+            let success = execute_commands(&db, &project_root, &cwd.to_string_lossy(), &cmds)?;
             db.record_execution(wf.id, success)?;
         } else {
             eprintln!("\x1b[1;31mUnknown shortcut '{}' for project '{}'. Run 'rr list' to see available.\x1b[0m", shortcut, project.name);
@@ -213,7 +227,7 @@ fn main() -> Result<()> {
     let workflows = db.get_workflows_for_project(&project_root)?;
     if let Some(wf) = run_tui(workflows, &project.name)? {
         let cmds: Vec<String> = serde_json::from_str(&wf.commands_json)?;
-        let success = execute_commands(&cmds)?;
+        let success = execute_commands(&db, &project_root, &cwd.to_string_lossy(), &cmds)?;
         db.record_execution(wf.id, success)?;
     }
 

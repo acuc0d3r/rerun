@@ -87,6 +87,17 @@ impl TuiApp {
             }
         }
     }
+
+    pub fn run_shortcut(&mut self, shortcut: &str) {
+        if let Some(index) = self
+            .workflows
+            .iter()
+            .position(|workflow| workflow.shortcut == shortcut)
+        {
+            self.state.select(Some(index));
+            self.run_selected();
+        }
+    }
 }
 
 pub fn run_tui(
@@ -214,9 +225,10 @@ pub fn run_tui(
                 .wrap(Wrap { trim: true });
             f.render_widget(details, main_chunks[1]);
 
-            let footer = Paragraph::new(" [Enter] Run  [j/k/↑/↓] Navigate  [q/Esc] Exit")
-                .style(Style::default().fg(Color::DarkGray))
-                .block(Block::default().borders(Borders::ALL));
+            let footer =
+                Paragraph::new(" [shortcut]/[Enter] Run  [j/k/↑/↓] Navigate  [q/Esc] Exit")
+                    .style(Style::default().fg(Color::DarkGray))
+                    .block(Block::default().borders(Borders::ALL));
             f.render_widget(footer, chunks[2]);
         })?;
 
@@ -231,6 +243,9 @@ pub fn run_tui(
                     }
                     KeyCode::Char('k') | KeyCode::Up => {
                         app.previous();
+                    }
+                    KeyCode::Char(shortcut) => {
+                        app.run_shortcut(&shortcut.to_string());
                     }
                     KeyCode::Enter => {
                         app.run_selected();
