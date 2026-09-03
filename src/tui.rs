@@ -1,3 +1,4 @@
+use crate::db::WorkflowRecord;
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode},
@@ -13,7 +14,6 @@ use ratatui::{
     Terminal,
 };
 use std::io;
-use crate::db::WorkflowRecord;
 
 struct TerminalCleanup;
 
@@ -89,7 +89,10 @@ impl TuiApp {
     }
 }
 
-pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Option<WorkflowRecord>> {
+pub fn run_tui(
+    workflows: Vec<WorkflowRecord>,
+    project_name: &str,
+) -> Result<Option<WorkflowRecord>> {
     enable_raw_mode()?;
     let _cleanup = TerminalCleanup;
     let mut stdout = io::stdout();
@@ -111,7 +114,11 @@ pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Opt
                 .split(f.area());
 
             let header = Paragraph::new(format!(" rerun (rr) - Project: {}", project_name))
-                .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+                .style(
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                )
                 .block(Block::default().borders(Borders::ALL).title("Workflows"));
             f.render_widget(header, chunks[0]);
 
@@ -128,7 +135,12 @@ pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Opt
                     let title = &wf.name;
                     let freq = format!(" ({}x)", wf.frequency);
                     let line = Line::from(vec![
-                        Span::styled(shortcut, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        Span::styled(
+                            shortcut,
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                         Span::raw(title),
                         Span::styled(freq, Style::default().fg(Color::DarkGray)),
                     ]);
@@ -137,7 +149,11 @@ pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Opt
                 .collect();
 
             let list = List::new(items)
-                .block(Block::default().borders(Borders::ALL).title("Available Workflows"))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title("Available Workflows"),
+                )
                 .highlight_style(
                     Style::default()
                         .bg(Color::Blue)
@@ -149,22 +165,32 @@ pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Opt
 
             let detail_text = if let Some(idx) = app.state.selected() {
                 if let Some(wf) = app.workflows.get(idx) {
-                    let cmds: Vec<String> = serde_json::from_str(&wf.commands_json).unwrap_or_default();
+                    let cmds: Vec<String> =
+                        serde_json::from_str(&wf.commands_json).unwrap_or_default();
                     let mut lines = vec![
                         Line::from(vec![
                             Span::styled("Name: ", Style::default().add_modifier(Modifier::BOLD)),
                             Span::raw(&wf.name),
                         ]),
                         Line::from(vec![
-                            Span::styled("Shortcut: ", Style::default().add_modifier(Modifier::BOLD)),
+                            Span::styled(
+                                "Shortcut: ",
+                                Style::default().add_modifier(Modifier::BOLD),
+                            ),
                             Span::styled(&wf.shortcut, Style::default().fg(Color::Yellow)),
                         ]),
                         Line::from(vec![
-                            Span::styled("Frequency: ", Style::default().add_modifier(Modifier::BOLD)),
+                            Span::styled(
+                                "Frequency: ",
+                                Style::default().add_modifier(Modifier::BOLD),
+                            ),
                             Span::raw(wf.frequency.to_string()),
                         ]),
                         Line::from(""),
-                        Line::from(Span::styled("Commands sequence:", Style::default().fg(Color::Green))),
+                        Line::from(Span::styled(
+                            "Commands sequence:",
+                            Style::default().fg(Color::Green),
+                        )),
                     ];
                     for (i, c) in cmds.iter().enumerate() {
                         lines.push(Line::from(format!("  {}. {}", i + 1, c)));
@@ -174,11 +200,17 @@ pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Opt
                     vec![Line::from("No selection")]
                 }
             } else {
-                vec![Line::from("No workflows discovered yet. Keep using your shell!")]
+                vec![Line::from(
+                    "No workflows discovered yet. Keep using your shell!",
+                )]
             };
 
             let details = Paragraph::new(detail_text)
-                .block(Block::default().borders(Borders::ALL).title("Workflow Details"))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title("Workflow Details"),
+                )
                 .wrap(Wrap { trim: true });
             f.render_widget(details, main_chunks[1]);
 

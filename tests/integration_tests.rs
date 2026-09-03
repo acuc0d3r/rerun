@@ -210,4 +210,50 @@ mod tests {
 
         assert!(workflows.iter().any(|workflow| workflow.shortcut == "gp"));
     }
+
+    #[test]
+    fn test_tool_and_git_mnemonics_match_workflow_intent() {
+        let commands = [
+            "git status",
+            "cargo test",
+            "clear",
+            "git status",
+            "cargo test",
+            "clear",
+            "git status",
+            "cargo test",
+            "clear",
+            "git diff",
+            "cargo build",
+            "clear",
+            "git diff",
+            "cargo build",
+            "clear",
+            "git diff",
+            "cargo build",
+        ];
+        let events = commands
+            .iter()
+            .map(|command| {
+                CommandEvent::new(
+                    "s1".into(),
+                    (*command).into(),
+                    "/tmp".into(),
+                    0,
+                    "bash".into(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let workflows = SequenceMiner::new(3).mine(&events);
+        let shortcut_for = |commands: &[&str]| {
+            workflows
+                .iter()
+                .find(|workflow| workflow.commands == commands)
+                .map(|workflow| workflow.shortcut.as_str())
+        };
+
+        assert_eq!(shortcut_for(&["git status", "cargo test"]), Some("s"));
+        assert_eq!(shortcut_for(&["git diff", "cargo build"]), Some("d"));
+    }
 }

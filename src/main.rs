@@ -62,7 +62,10 @@ fn execute_commands(commands: &[String]) -> Result<bool> {
         return Ok(false);
     }
 
-    println!("\x1b[1;36m▶ Running workflow ({} commands):\x1b[0m", commands.len());
+    println!(
+        "\x1b[1;36m▶ Running workflow ({} commands):\x1b[0m",
+        commands.len()
+    );
     for (i, cmd) in commands.iter().enumerate() {
         println!("\x1b[1;34m[{}/{}] $ {}\x1b[0m", i + 1, commands.len(), cmd);
         let status = Command::new("bash")
@@ -148,7 +151,13 @@ fn main() -> Result<()> {
             for wf in list {
                 let cmds: Vec<String> = serde_json::from_str(&wf.commands_json)
                     .with_context(|| format!("Invalid commands for workflow '{}'", wf.shortcut))?;
-                println!("  \x1b[1;33mrr {:<3}\x1b[0m {:<20} ({}x) -> {}", wf.shortcut, wf.name, wf.frequency, cmds.join(" && "));
+                println!(
+                    "  \x1b[1;33mrr {:<3}\x1b[0m {:<20} ({}x) -> {}",
+                    wf.shortcut,
+                    wf.name,
+                    wf.frequency,
+                    cmds.join(" && ")
+                );
             }
             return Ok(());
         }

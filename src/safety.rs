@@ -11,14 +11,19 @@ impl SafetyChecker {
 
         let cmd = parts[0].trim_start_matches(|c| c == '(' || c == '{');
         let dangerous_bins = [
-            "rm", "rmdir", "mkfs", "dd", "fdisk", "parted", "chmod", "chown", "reboot", "shutdown", "poweroff",
+            "rm", "rmdir", "mkfs", "dd", "fdisk", "parted", "chmod", "chown", "reboot", "shutdown",
+            "poweroff",
         ];
 
         if dangerous_bins.contains(&cmd) {
             return true;
         }
 
-        if cmd == "sudo" || parts.iter().any(|part| dangerous_bins.contains(part) || *part == "sudo") {
+        if cmd == "sudo"
+            || parts
+                .iter()
+                .any(|part| dangerous_bins.contains(part) || *part == "sudo")
+        {
             return true;
         }
 
@@ -26,7 +31,9 @@ impl SafetyChecker {
             if parts.contains(&"reset") && parts.contains(&"--hard") {
                 return true;
             }
-            if parts.contains(&"clean") && (parts.contains(&"-f") || parts.contains(&"-fd") || parts.contains(&"-xdf")) {
+            if parts.contains(&"clean")
+                && (parts.contains(&"-f") || parts.contains(&"-fd") || parts.contains(&"-xdf"))
+            {
                 return true;
             }
             if parts.contains(&"push") && (parts.contains(&"--force") || parts.contains(&"-f")) {
@@ -34,9 +41,14 @@ impl SafetyChecker {
             }
         }
 
-        if command.contains(" > /dev/") || command.contains(":(){ :|:& };:")
-            || command.contains(';') || command.contains("&&") || command.contains("||")
-            || command.contains('|') || command.contains("$(") || command.contains('`')
+        if command.contains(" > /dev/")
+            || command.contains(":(){ :|:& };:")
+            || command.contains(';')
+            || command.contains("&&")
+            || command.contains("||")
+            || command.contains('|')
+            || command.contains("$(")
+            || command.contains('`')
         {
             return true;
         }

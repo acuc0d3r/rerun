@@ -1,7 +1,7 @@
-use rusqlite::{params, Connection, Result};
-use std::path::Path;
 use crate::event::CommandEvent;
 use chrono::{DateTime, Utc};
+use rusqlite::{params, Connection, Result};
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct WorkflowRecord {
@@ -61,7 +61,7 @@ impl Database {
                 executed_at TEXT NOT NULL,
                 success INTEGER NOT NULL
             );
-            "
+            ",
         )?;
         Ok(Self { conn })
     }
@@ -83,13 +83,17 @@ impl Database {
         Ok(self.conn.last_insert_rowid())
     }
 
-    pub fn get_recent_events_for_project(&self, project_root: &str, limit: usize) -> Result<Vec<CommandEvent>> {
+    pub fn get_recent_events_for_project(
+        &self,
+        project_root: &str,
+        limit: usize,
+    ) -> Result<Vec<CommandEvent>> {
         let mut stmt = self.conn.prepare(
             "SELECT session_id, command, cwd, exit_status, timestamp, shell
              FROM command_events
              WHERE project_root = ?1
              ORDER BY id DESC
-             LIMIT ?2"
+             LIMIT ?2",
         )?;
 
         let rows = stmt.query_map(params![project_root, limit as i64], |row| {
@@ -158,7 +162,11 @@ impl Database {
                 placeholders
             );
             let mut values: Vec<&dyn rusqlite::ToSql> = vec![&project_root];
-            values.extend(shortcuts.iter().map(|shortcut| shortcut as &dyn rusqlite::ToSql));
+            values.extend(
+                shortcuts
+                    .iter()
+                    .map(|shortcut| shortcut as &dyn rusqlite::ToSql),
+            );
             self.conn.execute(&sql, values.as_slice())?;
         }
         Ok(())
@@ -175,7 +183,9 @@ impl Database {
         let rows = stmt.query_map(params![project_root], |row| {
             let last_used_str: Option<String> = row.get(6)?;
             let last_used = last_used_str.and_then(|s| {
-                DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc))
+                DateTime::parse_from_rfc3339(&s)
+                    .ok()
+                    .map(|dt| dt.with_timezone(&Utc))
             });
 
             let created_at_str: String = row.get(8)?;
@@ -203,7 +213,11 @@ impl Database {
         Ok(list)
     }
 
-    pub fn find_workflow(&self, project_root: &str, shortcut: &str) -> Result<Option<WorkflowRecord>> {
+    pub fn find_workflow(
+        &self,
+        project_root: &str,
+        shortcut: &str,
+    ) -> Result<Option<WorkflowRecord>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, project_root, shortcut, name, commands_json, frequency, last_used, is_pinned, created_at
              FROM workflows
@@ -213,7 +227,9 @@ impl Database {
         let mut rows = stmt.query_map(params![project_root, shortcut], |row| {
             let last_used_str: Option<String> = row.get(6)?;
             let last_used = last_used_str.and_then(|s| {
-                DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc))
+                DateTime::parse_from_rfc3339(&s)
+                    .ok()
+                    .map(|dt| dt.with_timezone(&Utc))
             });
 
             let created_at_str: String = row.get(8)?;
@@ -255,9 +271,17 @@ impl Database {
     }
 
     pub fn total_stats(&self) -> Result<(i64, i64, i64)> {
-        let event_count: i64 = self.conn.query_row("SELECT COUNT(*) FROM command_events", [], |r| r.get(0))?;
-        let workflow_count: i64 = self.conn.query_row("SELECT COUNT(*) FROM workflows", [], |r| r.get(0))?;
-        let project_count: i64 = self.conn.query_row("SELECT COUNT(DISTINCT project_root) FROM command_events", [], |r| r.get(0))?;
+        let event_count: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM command_events", [], |r| r.get(0))?;
+        let workflow_count: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM workflows", [], |r| r.get(0))?;
+        let project_count: i64 = self.conn.query_row(
+            "SELECT COUNT(DISTINCT project_root) FROM command_events",
+            [],
+            |r| r.get(0),
+        )?;
         Ok((event_count, workflow_count, project_count))
     }
 }
