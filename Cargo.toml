@@ -3,7 +3,7 @@ name = "rerun"
 version = "0.1.0"
 edition = "2021"
 description = "Automatic CLI workflow learner and shortcut runner"
-authors = ["OpenClaw"]
+authors = ["acuc0d3r"]
 
 [lib]
 name = "rerun"
