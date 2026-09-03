@@ -138,6 +138,32 @@ impl Database {
         Ok(())
     }
 
+    pub fn remove_unpinned_workflows_not_in(
+        &self,
+        project_root: &str,
+        shortcuts: &[String],
+    ) -> Result<()> {
+        if shortcuts.is_empty() {
+            self.conn.execute(
+                "DELETE FROM workflows WHERE project_root = ?1 AND is_pinned = 0",
+                params![project_root],
+            )?;
+        } else {
+            let placeholders = std::iter::repeat("?")
+                .take(shortcuts.len())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let sql = format!(
+                "DELETE FROM workflows WHERE project_root = ?1 AND is_pinned = 0 AND shortcut NOT IN ({})",
+                placeholders
+            );
+            let mut values: Vec<&dyn rusqlite::ToSql> = vec![&project_root];
+            values.extend(shortcuts.iter().map(|shortcut| shortcut as &dyn rusqlite::ToSql));
+            self.conn.execute(&sql, values.as_slice())?;
+        }
+        Ok(())
+    }
+
     pub fn get_workflows_for_project(&self, project_root: &str) -> Result<Vec<WorkflowRecord>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, project_root, shortcut, name, commands_json, frequency, last_used, is_pinned, created_at

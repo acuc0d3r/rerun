@@ -55,38 +55,54 @@ impl SequenceMiner {
         }
     }
 
-    fn filter_commands(events: &[CommandEvent]) -> Vec<String> {
-        events
-            .iter()
-            .filter(|e| e.exit_status == 0) // only successful commands form good workflows
-            .map(|e| e.command.trim().to_string())
-            .filter(|c| {
-                !c.is_empty()
-                    && !c.starts_with("cd ")
-                    && !c.starts_with("export ")
-                    && !c.starts_with("source ")
-                    && c != "clear"
-                    && c != "history"
-                    && !c.starts_with("rr")
-            })
-            .collect()
+    fn filter_commands(events: &[CommandEvent]) -> Vec<Vec<String>> {
+        let mut runs = Vec::new();
+        let mut current = Vec::new();
+        let mut session_id: Option<&str> = None;
+        for event in events {
+            if session_id.is_some_and(|id| id != event.session_id) {
+                if !current.is_empty() {
+                    runs.push(std::mem::take(&mut current));
+                }
+            }
+            session_id = Some(&event.session_id);
+            let command = event.command.trim();
+            let noise = command.is_empty()
+                || command == "clear"
+                || command == "history"
+                || command == "rr"
+                || command.starts_with("cd ")
+                || command.starts_with("export ")
+                || command.starts_with("source ")
+                || command.starts_with("rr ");
+            if event.exit_status != 0 || noise {
+                if !current.is_empty() {
+                    runs.push(std::mem::take(&mut current));
+                }
+            } else {
+                current.push(command.to_string());
+            }
+        }
+        if !current.is_empty() {
+            runs.push(current);
+        }
+        runs
     }
 
     pub fn mine(&self, events: &[CommandEvent]) -> Vec<DiscoveredWorkflow> {
-        let clean_cmds = Self::filter_commands(events);
-        if clean_cmds.len() < self.min_length {
-            return Vec::new();
-        }
-
         let mut freq_map: HashMap<Vec<String>, usize> = HashMap::new();
-
-        for n in self.min_length..=self.max_length {
-            if clean_cmds.len() < n {
-                break;
+        for clean_cmds in Self::filter_commands(events) {
+            if clean_cmds.len() < self.min_length {
+                continue;
             }
-            for window in clean_cmds.windows(n) {
-                let seq = window.to_vec();
-                *freq_map.entry(seq).or_insert(0) += 1;
+            for n in self.min_length..=self.max_length {
+                if clean_cmds.len() < n {
+                    break;
+                }
+                for window in clean_cmds.windows(n) {
+                    let seq = window.to_vec();
+                    *freq_map.entry(seq).or_insert(0) += 1;
+                }
             }
         }
 
@@ -101,6 +117,7 @@ impl SequenceMiner {
             b.0.len()
                 .cmp(&a.0.len())
                 .then_with(|| b.1.cmp(&a.1))
+                .then_with(|| a.0.cmp(&b.0))
         });
 
         // Subsumption suppression: remove sub-sequences if a longer sequence covers it with same frequency

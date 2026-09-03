@@ -9,7 +9,7 @@ impl SafetyChecker {
             return false;
         }
 
-        let cmd = parts[0];
+        let cmd = parts[0].trim_start_matches(|c| c == '(' || c == '{');
         let dangerous_bins = [
             "rm", "rmdir", "mkfs", "dd", "fdisk", "parted", "chmod", "chown", "reboot", "shutdown", "poweroff",
         ];
@@ -18,7 +18,7 @@ impl SafetyChecker {
             return true;
         }
 
-        if cmd == "sudo" {
+        if cmd == "sudo" || parts.iter().any(|part| dangerous_bins.contains(part) || *part == "sudo") {
             return true;
         }
 
@@ -34,7 +34,10 @@ impl SafetyChecker {
             }
         }
 
-        if command.contains(" > /dev/") || command.contains(":(){ :|:& };:") {
+        if command.contains(" > /dev/") || command.contains(":(){ :|:& };:")
+            || command.contains(';') || command.contains("&&") || command.contains("||")
+            || command.contains('|') || command.contains("$(") || command.contains('`')
+        {
             return true;
         }
 

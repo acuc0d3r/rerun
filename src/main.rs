@@ -65,7 +65,7 @@ fn execute_commands(commands: &[String]) -> Result<bool> {
     println!("\x1b[1;36m▶ Running workflow ({} commands):\x1b[0m", commands.len());
     for (i, cmd) in commands.iter().enumerate() {
         println!("\x1b[1;34m[{}/{}] $ {}\x1b[0m", i + 1, commands.len(), cmd);
-        let status = Command::new("sh")
+        let status = Command::new("bash")
             .arg("-c")
             .arg(cmd)
             .status()
@@ -87,6 +87,8 @@ fn sync_project_workflows(db: &Database, project_root: &str) -> Result<()> {
     let events = db.get_recent_events_for_project(project_root, 1000)?;
     let miner = SequenceMiner::default();
     let workflows = miner.mine(&events);
+    let shortcuts: Vec<String> = workflows.iter().map(|wf| wf.shortcut.clone()).collect();
+    db.remove_unpinned_workflows_not_in(project_root, &shortcuts)?;
 
     for wf in workflows {
         let commands_json = serde_json::to_string(&wf.commands)?;
@@ -144,7 +146,8 @@ fn main() -> Result<()> {
             }
             println!("Workflows for {}:", project.name);
             for wf in list {
-                let cmds: Vec<String> = serde_json::from_str(&wf.commands_json).unwrap_or_default();
+                let cmds: Vec<String> = serde_json::from_str(&wf.commands_json)
+                    .with_context(|| format!("Invalid commands for workflow '{}'", wf.shortcut))?;
                 println!("  \x1b[1;33mrr {:<3}\x1b[0m {:<20} ({}x) -> {}", wf.shortcut, wf.name, wf.frequency, cmds.join(" && "));
             }
             return Ok(());

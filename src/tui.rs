@@ -15,6 +15,15 @@ use ratatui::{
 use std::io;
 use crate::db::WorkflowRecord;
 
+struct TerminalCleanup;
+
+impl Drop for TerminalCleanup {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+    }
+}
+
 pub struct TuiApp {
     workflows: Vec<WorkflowRecord>,
     state: ListState,
@@ -82,6 +91,7 @@ impl TuiApp {
 
 pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Option<WorkflowRecord>> {
     enable_raw_mode()?;
+    let _cleanup = TerminalCleanup;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
@@ -203,8 +213,6 @@ pub fn run_tui(workflows: Vec<WorkflowRecord>, project_name: &str) -> Result<Opt
         }
     }
 
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
     Ok(app.selected_to_run)
