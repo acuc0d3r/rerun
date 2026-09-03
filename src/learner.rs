@@ -167,18 +167,23 @@ impl SequenceMiner {
             }
         }
 
-        let letters = [
-            "d", "b", "t", "s", "r", "p", "c", "m", "w", "x", "y", "z", "a", "e", "f", "g",
-        ];
         let mut workflows = Vec::new();
         let mut used_shortcuts = std::collections::HashSet::new();
 
-        for (i, (seq, count)) in filtered.into_iter().enumerate() {
-            let base_shortcut = letters.get(i).copied().unwrap_or("w");
-            let mut shortcut = base_shortcut.to_string();
-            let mut suffix = 1;
+        for (seq, count) in filtered {
+            let candidates = shortcut_candidates(&seq);
+            let primary = candidates
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "w".to_string());
+            let mut shortcut = candidates
+                .iter()
+                .find(|candidate| !used_shortcuts.contains(*candidate))
+                .cloned()
+                .unwrap_or_else(|| primary.clone());
+            let mut suffix = 2;
             while used_shortcuts.contains(&shortcut) {
-                shortcut = format!("{}{}", base_shortcut, suffix);
+                shortcut = format!("{}{}", primary, suffix);
                 suffix += 1;
             }
             used_shortcuts.insert(shortcut.clone());
@@ -193,6 +198,165 @@ impl SequenceMiner {
         }
 
         workflows
+    }
+}
+
+fn shortcut_candidates(commands: &[String]) -> Vec<String> {
+    let mut candidates = Vec::new();
+    let has_git_pull = commands
+        .iter()
+        .any(|command| is_git_command(command, "pull"));
+    let has_git_push = commands
+        .iter()
+        .any(|command| is_git_command(command, "push"));
+
+    if has_git_pull && has_git_push {
+        candidates.push("gp".to_string());
+    }
+
+    for command in commands {
+        if let Some(mnemonic) = command_mnemonic(command) {
+            push_unique(&mut candidates, mnemonic);
+        }
+    }
+
+    for command in commands {
+        if let Some(verb) = command_verb_mnemonic(command) {
+            push_unique(&mut candidates, verb);
+        }
+    }
+
+    if let Some(command) = dominant_command(commands) {
+        if let Some(pair) = command_pair_mnemonic(command) {
+            push_unique(&mut candidates, pair);
+        }
+        if let Some(fallback) = fallback_mnemonic(command) {
+            push_unique(&mut candidates, fallback);
+        }
+    }
+
+    candidates
+}
+
+fn command_mnemonic(command: &str) -> Option<String> {
+    let words: Vec<&str> = command.split_whitespace().collect();
+    let binary = words.first()?.rsplit('/').next()?;
+
+    if binary == "git" {
+        let subcommand = words.get(1).copied().unwrap_or("");
+        return match subcommand {
+            "add" => Some("a".into()),
+            "commit" => Some("c".into()),
+            "push" => Some("p".into()),
+            "pull" => Some("l".into()),
+            "status" => Some("s".into()),
+            "diff" => Some("d".into()),
+            "fetch" => Some("f".into()),
+            "stash" => Some("t".into()),
+            _ => None,
+        };
+    }
+
+    let subcommands = words.iter().skip(1).filter(|word| !word.starts_with('-'));
+    if binary == "pytest"
+        || binary == "jest"
+        || subcommands
+            .clone()
+            .any(|word| matches!(*word, "test" | "t"))
+    {
+        return Some("t".into());
+    }
+    if binary == "make"
+        || binary == "webpack"
+        || subcommands
+            .clone()
+            .any(|word| matches!(*word, "build" | "b"))
+    {
+        return Some("b".into());
+    }
+    for subcommand in subcommands {
+        match *subcommand {
+            "deploy" | "release" | "publish" => return Some("d".into()),
+            "push" => return Some("p".into()),
+            "run" => return Some("r".into()),
+            "start" | "serve" | "dev" => return Some("s".into()),
+            "lint" | "clippy" => return Some("l".into()),
+            "fmt" | "prettier" => return Some("f".into()),
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn fallback_mnemonic(command: &str) -> Option<String> {
+    command
+        .split_whitespace()
+        .next()?
+        .rsplit('/')
+        .next()?
+        .chars()
+        .next()
+        .map(|character| character.to_ascii_lowercase().to_string())
+}
+
+fn command_verb_mnemonic(command: &str) -> Option<String> {
+    let words: Vec<&str> = command.split_whitespace().collect();
+    let verb = words
+        .iter()
+        .skip(1)
+        .find(|word| !word.starts_with('-'))
+        .copied()?;
+    let mnemonic = match verb {
+        "test" | "t" | "pytest" | "jest" => "t".to_string(),
+        "build" | "b" | "make" => "b".to_string(),
+        "deploy" | "release" | "publish" => "d".to_string(),
+        "run" => "r".to_string(),
+        "start" | "serve" | "dev" => "s".to_string(),
+        "lint" | "clippy" => "l".to_string(),
+        "fmt" | "prettier" => "f".to_string(),
+        _ => verb.chars().next()?.to_ascii_lowercase().to_string(),
+    };
+    Some(mnemonic)
+}
+
+fn command_pair_mnemonic(command: &str) -> Option<String> {
+    let words: Vec<&str> = command.split_whitespace().collect();
+    let binary = words.first()?.rsplit('/').next()?.chars().next()?;
+    let verb = words
+        .iter()
+        .skip(1)
+        .find(|word| !word.starts_with('-'))?
+        .chars()
+        .next()?;
+    Some(format!(
+        "{}{}",
+        binary.to_ascii_lowercase(),
+        verb.to_ascii_lowercase()
+    ))
+}
+
+fn dominant_command<'a>(commands: &'a [String]) -> Option<&'a str> {
+    commands
+        .iter()
+        .max_by_key(|command| {
+            let binary = command.split_whitespace().next().unwrap_or("");
+            commands
+                .iter()
+                .filter(|other| other.split_whitespace().next().unwrap_or("") == binary)
+                .count()
+        })
+        .map(String::as_str)
+}
+
+fn is_git_command(command: &str, subcommand: &str) -> bool {
+    let mut words = command.split_whitespace();
+    words.next() == Some("git") && words.next() == Some(subcommand)
+}
+
+fn push_unique(candidates: &mut Vec<String>, candidate: String) {
+    if !candidates.contains(&candidate) {
+        candidates.push(candidate);
     }
 }
 

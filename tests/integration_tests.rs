@@ -147,4 +147,67 @@ mod tests {
             .iter()
             .all(|workflow| { workflow.commands != vec!["cargo build", "cargo test"] }));
     }
+
+    #[test]
+    fn test_mnemonic_shortcuts() {
+        let commands = [
+            "cargo test",
+            "cargo test",
+            "clear",
+            "cargo build",
+            "cargo build",
+            "clear",
+            "cargo test",
+            "cargo test",
+            "clear",
+            "cargo build",
+            "cargo build",
+            "clear",
+            "cargo test",
+            "cargo test",
+            "clear",
+            "cargo build",
+            "cargo build",
+        ];
+        let events = commands
+            .iter()
+            .map(|command| {
+                CommandEvent::new(
+                    "s1".into(),
+                    (*command).into(),
+                    "/tmp".into(),
+                    0,
+                    "bash".into(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let workflows = SequenceMiner::new(3).mine(&events);
+
+        assert!(workflows.iter().any(|workflow| workflow.shortcut == "t"));
+        assert!(workflows.iter().any(|workflow| workflow.shortcut == "b"));
+    }
+
+    #[test]
+    fn test_git_pull_push_pair_prefers_pair_mnemonic() {
+        let commands = ["git pull", "git push"];
+        let events = commands
+            .iter()
+            .cycle()
+            .take(12)
+            .map(|command| {
+                CommandEvent::new(
+                    "s1".into(),
+                    (*command).into(),
+                    "/tmp".into(),
+                    0,
+                    "bash".into(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let workflows = SequenceMiner::new(3).mine(&events);
+
+        assert!(workflows.iter().any(|workflow| workflow.shortcut == "gp"));
+    }
 }

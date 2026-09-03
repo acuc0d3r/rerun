@@ -50,7 +50,8 @@ data uses `$XDG_RUNTIME_DIR/.rerun/spool` when that variable is set.
   `reset`, `history`, `fc`, and `rr`), and session changes as workflow
   boundaries.
 - Keep shortcut generation deterministic; stable ordering is required so sync
-  does not randomly remap shortcuts.
+  does not randomly remap shortcuts. Prefer intent mnemonics, then secondary
+  verb mnemonics, two-letter command mnemonics, and numbered suffixes.
 - Use parameterized SQLite queries. Workflow command sequences are stored as
   JSON and must be deserialized with an explicit error, not silently replaced
   with an empty sequence.
