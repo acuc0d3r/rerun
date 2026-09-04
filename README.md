@@ -25,6 +25,25 @@ Install it somewhere on `PATH`, for example:
 install -Dm755 target/release/rr ~/.local/bin/rr
 ```
 
+To update an existing installation after pulling or changing the code, run
+those commands again from the repository root. The `install` command replaces
+the old binary:
+
+```bash
+cargo build --release && install -Dm755 target/release/rr ~/.local/bin/rr
+hash -r 2>/dev/null || true
+rr --version
+```
+
+Make sure `~/.local/bin` appears before any older `rr` installation in
+`PATH`:
+
+```bash
+command -v rr
+```
+
+The shell hook does not need to be reinstalled when only the binary changes.
+
 Install a shell hook:
 
 ```bash
