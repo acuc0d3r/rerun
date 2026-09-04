@@ -117,6 +117,27 @@ mod tests {
     }
 
     #[test]
+    fn test_workflow_metadata_edit_is_persisted() {
+        let dir = tempdir().unwrap();
+        let db = Database::open(&dir.path().join("test.db")).unwrap();
+        db.save_workflow(
+            "/repo",
+            "a",
+            "git & git",
+            r#"["git add .","git commit"]"#,
+            3,
+        )
+        .unwrap();
+
+        assert!(db
+            .update_workflow_metadata("/repo", "a", Some("c"), Some("Commit changes"))
+            .unwrap());
+        let workflow = db.find_workflow("/repo", "c").unwrap().unwrap();
+        assert_eq!(workflow.name, "Commit changes");
+        assert!(workflow.is_pinned);
+    }
+
+    #[test]
     fn test_shell_noise_breaks_workflow_runs() {
         let commands = [
             "cargo build",

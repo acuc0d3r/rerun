@@ -44,6 +44,17 @@ enum Commands {
     },
     /// Show statistics
     Stats,
+    /// Edit a workflow title and/or shortcut
+    Edit {
+        /// Current workflow shortcut
+        shortcut: String,
+        /// New shortcut
+        #[arg(long)]
+        new_shortcut: Option<String>,
+        /// New title
+        #[arg(long)]
+        title: Option<String>,
+    },
     /// Install shell hook
     Install {
         #[arg(default_value = "bash")]
@@ -189,6 +200,40 @@ fn main() -> Result<()> {
             println!("  Total recorded events: {}", events);
             println!("  Total learned workflows: {}", workflows);
             println!("  Total tracked projects: {}", projects);
+            return Ok(());
+        }
+        Some(Commands::Edit {
+            shortcut,
+            new_shortcut,
+            title,
+        }) => {
+            if new_shortcut.is_none() && title.is_none() {
+                anyhow::bail!("Provide --new-shortcut, --title, or both");
+            }
+            if new_shortcut.as_deref().is_some_and(str::is_empty)
+                || title.as_deref().is_some_and(str::is_empty)
+            {
+                anyhow::bail!("Workflow shortcut and title cannot be empty");
+            }
+            if let Some(ref replacement) = new_shortcut {
+                if replacement.chars().any(char::is_whitespace) {
+                    anyhow::bail!("Workflow shortcut cannot contain whitespace");
+                }
+                if replacement != &shortcut
+                    && db.find_workflow(&project_root, replacement)?.is_some()
+                {
+                    anyhow::bail!("Workflow shortcut '{}' is already in use", replacement);
+                }
+            }
+            if !db.update_workflow_metadata(
+                &project_root,
+                &shortcut,
+                new_shortcut.as_deref(),
+                title.as_deref(),
+            )? {
+                anyhow::bail!("Unknown shortcut '{}'", shortcut);
+            }
+            println!("Workflow '{}' updated.", shortcut);
             return Ok(());
         }
         Some(Commands::Install { shell }) => {

@@ -76,7 +76,14 @@ rr history              Show recent commands
 rr history --limit 50   Show more commands
 rr stats                Show database statistics
 rr record ...           Record one command event
+rr edit s --title "Check and test"
+rr edit s --new-shortcut c
+rr edit s --new-shortcut c --title "Commit changes"
 ```
+
+Edited workflows are retained across `rr sync` and treated as pinned
+workflows. Shortcut edits affect both direct execution (`rr c`) and TUI
+shortcut selection.
 
 Run `rr --help` for complete CLI options.
 

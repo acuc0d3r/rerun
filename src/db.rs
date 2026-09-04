@@ -1,6 +1,6 @@
 use crate::event::CommandEvent;
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -129,6 +129,23 @@ impl Database {
         frequency: i32,
     ) -> Result<()> {
         let now = Utc::now().to_rfc3339();
+        let existing_id: Option<i64> = self
+            .conn
+            .query_row(
+                "SELECT id FROM workflows
+                 WHERE project_root = ?1 AND commands_json = ?2
+                 LIMIT 1",
+                params![project_root, commands_json],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(id) = existing_id {
+            self.conn.execute(
+                "UPDATE workflows SET frequency = ?1 WHERE id = ?2 AND is_pinned = 0",
+                params![frequency, id],
+            )?;
+            return Ok(());
+        }
         self.conn.execute(
             "INSERT INTO workflows (project_root, shortcut, name, commands_json, frequency, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -268,6 +285,28 @@ impl Database {
             params![now, workflow_id],
         )?;
         Ok(())
+    }
+
+    pub fn update_workflow_metadata(
+        &self,
+        project_root: &str,
+        current_shortcut: &str,
+        new_shortcut: Option<&str>,
+        new_name: Option<&str>,
+    ) -> Result<bool> {
+        let workflow = self.find_workflow(project_root, current_shortcut)?;
+        let Some(workflow) = workflow else {
+            return Ok(false);
+        };
+        let shortcut = new_shortcut.unwrap_or(&workflow.shortcut);
+        let name = new_name.unwrap_or(&workflow.name);
+        self.conn.execute(
+            "UPDATE workflows
+             SET shortcut = ?1, name = ?2, is_pinned = 1
+             WHERE id = ?3",
+            params![shortcut, name, workflow.id],
+        )?;
+        Ok(true)
     }
 
     pub fn total_stats(&self) -> Result<(i64, i64, i64)> {
