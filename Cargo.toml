@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Automatic CLI workflow learner and shortcut runner"
 authors = ["acuc0d3r"]
+license = "MIT OR Apache-2.0"
 
 [lib]
 name = "rerun"
