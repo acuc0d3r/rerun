@@ -203,6 +203,9 @@ impl SequenceMiner {
 
 fn shortcut_candidates(commands: &[String]) -> Vec<String> {
     let mut candidates = Vec::new();
+    if has_git_sequence(commands, &["add", "commit"]) {
+        candidates.push("c".to_string());
+    }
     let has_git_pull = commands
         .iter()
         .any(|command| is_git_command(command, "pull"));
@@ -236,6 +239,15 @@ fn shortcut_candidates(commands: &[String]) -> Vec<String> {
     }
 
     candidates
+}
+
+fn has_git_sequence(commands: &[String], subcommands: &[&str]) -> bool {
+    commands.windows(subcommands.len()).any(|window| {
+        window
+            .iter()
+            .zip(subcommands)
+            .all(|(command, subcommand)| is_git_command(command, subcommand))
+    })
 }
 
 fn command_mnemonic(command: &str) -> Option<String> {

@@ -212,6 +212,29 @@ mod tests {
     }
 
     #[test]
+    fn test_git_add_commit_workflow_prefers_commit_mnemonic() {
+        let commands = ["git add .", "git commit"];
+        let events = commands
+            .iter()
+            .cycle()
+            .take(12)
+            .map(|command| {
+                CommandEvent::new(
+                    "s1".into(),
+                    (*command).into(),
+                    "/tmp".into(),
+                    0,
+                    "bash".into(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let workflows = SequenceMiner::new(3).mine(&events);
+
+        assert!(workflows.iter().any(|workflow| workflow.shortcut == "c"));
+    }
+
+    #[test]
     fn test_tool_and_git_mnemonics_match_workflow_intent() {
         let commands = [
             "git status",
