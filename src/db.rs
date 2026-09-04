@@ -120,6 +120,33 @@ impl Database {
         Ok(events)
     }
 
+    pub fn get_all_events_for_project(&self, project_root: &str) -> Result<Vec<CommandEvent>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT session_id, command, cwd, exit_status, timestamp, shell
+             FROM command_events
+             WHERE project_root = ?1
+             ORDER BY id ASC",
+        )?;
+
+        let rows = stmt.query_map(params![project_root], |row| {
+            let ts_str: String = row.get(4)?;
+            let timestamp = DateTime::parse_from_rfc3339(&ts_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+
+            Ok(CommandEvent {
+                session_id: row.get(0)?,
+                command: row.get(1)?,
+                cwd: row.get(2)?,
+                exit_status: row.get(3)?,
+                timestamp,
+                shell: row.get(5)?,
+            })
+        })?;
+
+        rows.collect()
+    }
+
     pub fn save_workflow(
         &self,
         project_root: &str,

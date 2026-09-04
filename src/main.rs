@@ -112,7 +112,7 @@ fn execute_commands(
 }
 
 fn sync_project_workflows(db: &Database, project_root: &str) -> Result<()> {
-    let events = db.get_recent_events_for_project(project_root, 1000)?;
+    let events = db.get_all_events_for_project(project_root)?;
     let miner = SequenceMiner::default();
     let workflows = miner.mine(&events);
     let shortcuts: Vec<String> = workflows.iter().map(|wf| wf.shortcut.clone()).collect();
