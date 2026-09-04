@@ -76,6 +76,12 @@ rr sync
 rr list
 ```
 
+`rr sync` re-analyzes the recorded commands for the current project, discovers
+repeated successful command sequences, updates workflow frequencies, and
+removes stale unpinned workflows. Run it after a few repetitions when you want
+new workflows to appear; it does not execute commands or reinstall shell
+hooks.
+
 Run a workflow by shortcut:
 
 ```bash
