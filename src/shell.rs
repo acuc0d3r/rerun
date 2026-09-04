@@ -11,11 +11,14 @@ pub trait ShellIntegration {
 
 pub struct BashIntegration;
 pub struct ZshIntegration;
+pub struct FishIntegration;
 
 const HOOK_START_MARKER: &str = "# >>> rr shell hook start >>>";
 const HOOK_END_MARKER: &str = "# <<< rr shell hook end <<<";
 const ZSH_HOOK_START_MARKER: &str = "# >>> rr zsh hook start >>>";
 const ZSH_HOOK_END_MARKER: &str = "# <<< rr zsh hook end <<<";
+const FISH_HOOK_START_MARKER: &str = "# >>> rr fish hook start >>>";
+const FISH_HOOK_END_MARKER: &str = "# <<< rr fish hook end <<<";
 
 fn install_script(path: &std::path::Path, script: &str, marker: &str) -> Result<()> {
     let content = if path.exists() {
@@ -153,5 +156,48 @@ precmd_functions+=(__rr_precmd)
             ZSH_HOOK_START_MARKER,
             ZSH_HOOK_END_MARKER,
         )
+    }
+}
+
+impl ShellIntegration for FishIntegration {
+    fn shell_name(&self) -> &'static str {
+        "fish"
+    }
+
+    fn generate_hook_script(&self) -> String {
+        format!(
+            r#"{start}
+function __rr_postexec --on-event fish_postexec
+    set -l last_exit $status
+    set -l last_cmd $argv[1]
+    if test -n "$last_cmd"
+        rr record --session "$fish_pid"-fish --status $last_exit --cmd "$last_cmd" --shell fish >/dev/null 2>&1 &
+    end
+end
+{end}
+"#,
+            start = FISH_HOOK_START_MARKER,
+            end = FISH_HOOK_END_MARKER
+        )
+    }
+
+    fn install(&self) -> Result<()> {
+        let config = dirs::config_dir()
+            .context("Could not find config directory")?
+            .join("fish")
+            .join("config.fish");
+        install_script(
+            &config,
+            &self.generate_hook_script(),
+            FISH_HOOK_START_MARKER,
+        )
+    }
+
+    fn uninstall(&self) -> Result<()> {
+        let config = dirs::config_dir()
+            .context("Could not find config directory")?
+            .join("fish")
+            .join("config.fish");
+        uninstall_script(&config, FISH_HOOK_START_MARKER, FISH_HOOK_END_MARKER)
     }
 }
