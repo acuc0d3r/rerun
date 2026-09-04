@@ -10,9 +10,64 @@ pub trait ShellIntegration {
 }
 
 pub struct BashIntegration;
+pub struct ZshIntegration;
 
 const HOOK_START_MARKER: &str = "# >>> rr shell hook start >>>";
 const HOOK_END_MARKER: &str = "# <<< rr shell hook end <<<";
+const ZSH_HOOK_START_MARKER: &str = "# >>> rr zsh hook start >>>";
+const ZSH_HOOK_END_MARKER: &str = "# <<< rr zsh hook end <<<";
+
+fn install_script(path: &std::path::Path, script: &str, marker: &str) -> Result<()> {
+    let content = if path.exists() {
+        fs::read_to_string(path)?
+    } else {
+        String::new()
+    };
+    if content.contains(marker) {
+        println!("rr shell hook is already installed in {}", path.display());
+        return Ok(());
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("Failed to open {}", path.display()))?;
+    writeln!(file, "\n{}", script)?;
+    println!("Successfully installed rr hook to {}", path.display());
+    Ok(())
+}
+
+fn uninstall_script(path: &std::path::Path, start: &str, end: &str) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+    let content = fs::read_to_string(path)?;
+    if !content.contains(start) {
+        println!("rr shell hook not found in {}", path.display());
+        return Ok(());
+    }
+    let mut new_lines = Vec::new();
+    let mut inside_block = false;
+    for line in content.lines() {
+        if line.contains(start) {
+            inside_block = true;
+            continue;
+        }
+        if line.contains(end) {
+            inside_block = false;
+            continue;
+        }
+        if !inside_block {
+            new_lines.push(line);
+        }
+    }
+    fs::write(path, new_lines.join("\n") + "\n")?;
+    println!("Successfully uninstalled rr hook from {}", path.display());
+    Ok(())
+}
 
 impl ShellIntegration for BashIntegration {
     fn shell_name(&self) -> &'static str {
@@ -43,61 +98,60 @@ fi
 
     fn install(&self) -> Result<()> {
         let home = dirs::home_dir().context("Could not find home directory")?;
-        let bashrc = home.join(".bashrc");
-
-        let content = if bashrc.exists() {
-            fs::read_to_string(&bashrc)?
-        } else {
-            String::new()
-        };
-
-        if content.contains(HOOK_START_MARKER) {
-            println!("rr bash hook is already installed in {}", bashrc.display());
-            return Ok(());
-        }
-
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&bashrc)
-            .with_context(|| format!("Failed to open {}", bashrc.display()))?;
-
-        writeln!(file, "\n{}", self.generate_hook_script())?;
-        println!("Successfully installed rr hook to {}", bashrc.display());
-        Ok(())
+        install_script(
+            &home.join(".bashrc"),
+            &self.generate_hook_script(),
+            HOOK_START_MARKER,
+        )
     }
 
     fn uninstall(&self) -> Result<()> {
         let home = dirs::home_dir().context("Could not find home directory")?;
-        let bashrc = home.join(".bashrc");
-        if !bashrc.exists() {
-            return Ok(());
-        }
+        uninstall_script(&home.join(".bashrc"), HOOK_START_MARKER, HOOK_END_MARKER)
+    }
+}
 
-        let content = fs::read_to_string(&bashrc)?;
-        if !content.contains(HOOK_START_MARKER) {
-            println!("rr bash hook not found in {}", bashrc.display());
-            return Ok(());
-        }
+impl ShellIntegration for ZshIntegration {
+    fn shell_name(&self) -> &'static str {
+        "zsh"
+    }
 
-        let mut new_lines = Vec::new();
-        let mut inside_block = false;
-        for line in content.lines() {
-            if line.contains(HOOK_START_MARKER) {
-                inside_block = true;
-                continue;
-            }
-            if line.contains(HOOK_END_MARKER) {
-                inside_block = false;
-                continue;
-            }
-            if !inside_block {
-                new_lines.push(line);
-            }
-        }
+    fn generate_hook_script(&self) -> String {
+        format!(
+            r#"{start}
+typeset -g __rr_last_cmd=""
+__rr_preexec() {{ __rr_last_cmd="$1" }}
+__rr_precmd() {{
+    local last_exit="$?"
+    if [[ -n "$__rr_last_cmd" ]]; then
+        (rr record --session "$$"-zsh --status "$last_exit" --cmd "$__rr_last_cmd" --shell zsh >/dev/null 2>&1 &)
+        __rr_last_cmd=""
+    fi
+}}
+preexec_functions+=(__rr_preexec)
+precmd_functions+=(__rr_precmd)
+{end}
+"#,
+            start = ZSH_HOOK_START_MARKER,
+            end = ZSH_HOOK_END_MARKER
+        )
+    }
 
-        fs::write(&bashrc, new_lines.join("\n") + "\n")?;
-        println!("Successfully uninstalled rr hook from {}", bashrc.display());
-        Ok(())
+    fn install(&self) -> Result<()> {
+        let home = dirs::home_dir().context("Could not find home directory")?;
+        install_script(
+            &home.join(".zshrc"),
+            &self.generate_hook_script(),
+            ZSH_HOOK_START_MARKER,
+        )
+    }
+
+    fn uninstall(&self) -> Result<()> {
+        let home = dirs::home_dir().context("Could not find home directory")?;
+        uninstall_script(
+            &home.join(".zshrc"),
+            ZSH_HOOK_START_MARKER,
+            ZSH_HOOK_END_MARKER,
+        )
     }
 }

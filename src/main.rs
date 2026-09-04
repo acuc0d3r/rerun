@@ -6,7 +6,7 @@ use rerun::event::CommandEvent;
 use rerun::learner::SequenceMiner;
 use rerun::project::detect_project;
 use rerun::safety::SafetyChecker;
-use rerun::shell::{BashIntegration, ShellIntegration};
+use rerun::shell::{BashIntegration, ShellIntegration, ZshIntegration};
 use rerun::tui::run_tui;
 use std::process::Command;
 
@@ -192,18 +192,18 @@ fn main() -> Result<()> {
             return Ok(());
         }
         Some(Commands::Install { shell }) => {
-            if shell == "bash" {
-                BashIntegration.install()?;
-            } else {
-                eprintln!("Unsupported shell: {}. Supported: bash", shell);
+            match shell.as_str() {
+                "bash" => BashIntegration.install()?,
+                "zsh" => ZshIntegration.install()?,
+                _ => eprintln!("Unsupported shell: {}. Supported: bash, zsh", shell),
             }
             return Ok(());
         }
         Some(Commands::Uninstall { shell }) => {
-            if shell == "bash" {
-                BashIntegration.uninstall()?;
-            } else {
-                eprintln!("Unsupported shell: {}. Supported: bash", shell);
+            match shell.as_str() {
+                "bash" => BashIntegration.uninstall()?,
+                "zsh" => ZshIntegration.uninstall()?,
+                _ => eprintln!("Unsupported shell: {}. Supported: bash, zsh", shell),
             }
             return Ok(());
         }

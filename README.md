@@ -3,7 +3,7 @@
 `rerun` (`rr`) learns repeated shell command workflows, assigns shortcuts,
 and replays them from the current project.
 
-It records successful Bash commands through a non-blocking shell hook, mines
+It records shell commands through non-blocking Bash, Zsh, or Fish hooks, mines
 repeated contiguous sequences, and stores workflows in SQLite. Destructive or
 compound commands require confirmation before execution.
 
@@ -25,12 +25,15 @@ Install it somewhere on `PATH`, for example:
 install -Dm755 target/release/rr ~/.local/bin/rr
 ```
 
-Install the Bash hook:
+Install a shell hook:
 
 ```bash
 rr install bash
 source ~/.bashrc
 ```
+
+Use `rr install zsh` with `source ~/.zshrc`. Hooks are marker-bounded and can
+be removed with the matching `rr uninstall <shell>` command.
 
 `rr install bash` appends a marker-bounded `PROMPT_COMMAND` hook to
 `~/.bashrc`. The hook records the last command after each prompt returns,
