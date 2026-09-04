@@ -32,8 +32,9 @@ rr install bash
 source ~/.bashrc
 ```
 
-Use `rr install zsh` with `source ~/.zshrc`. Hooks are marker-bounded and can
-be removed with the matching `rr uninstall <shell>` command. Use
+Use `rr install zsh` with `source ~/.zshrc`, or `rr install fish` with
+`source ~/.config/fish/config.fish`. Hooks are marker-bounded and can be
+removed with the matching `rr uninstall <shell>` command. Use
 `rr install fish` with `source ~/.config/fish/config.fish` for Fish.
 
 `rr install bash` appends a marker-bounded `PROMPT_COMMAND` hook to
