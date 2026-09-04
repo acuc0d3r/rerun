@@ -156,8 +156,7 @@ fn main() -> Result<()> {
                 shell,
             );
             db.insert_event(&event, &project_root)?;
-            // Periodic sync (every time or light pass)
-            let _ = sync_project_workflows(&db, &project_root);
+            sync_project_workflows(&db, &project_root)?;
             return Ok(());
         }
         Some(Commands::Sync) => {
